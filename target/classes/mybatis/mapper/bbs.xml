@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="bbs">
+	
+	<!-- c_list를 채울건데, commList를 불러서 채워야 하고, 부를 때, b_idx 컬럼명을 같이 불러줘 -->
+	<resultMap type="mybatis.vo.BbsVO" id="map1">
+		<!-- 기본키를 commList를 호출할 때 사용하므로 BbsVO에 있는 b_idx가 null값이 되는 문제가 발생.
+			이것을 ID로 채워줘야 한다. -->
+		<id property="b_idx" column="b_idx"/>	
+		<collection property="c_list" ofType="mybatis.vo.CommVO" select="commList" column="b_idx"/>
+	</resultMap>
+	
+	<!-- 특정 원글의 기본키를 조건으로 하여 해당 댓글들을 조회하는 기능 -->
+	<select id="commList" resultType="mybatis.vo.CommVO" parameterType="String">
+		SELECT * FROM comment_t
+		WHERE b_idx = #{b_idx}
+	</select>
+	
+	<!-- 사용자들이 원글들의 목록을 만들기 위해 호출하는 기능
+		(결과는 BbsVO 안에 여러개의 CommVO를 가지는 복합적인 결과를 만들어야 한다. => resultMap 속성을 지정해야함!) 
+		그리고 페이징을 위해 반드시 어느 페이지인지를 식별하여 시작 행값과 끝 행값을 받아야 한다.
+		그래서 parameterType 속성을 지정해야 한다.-->
+  	
+  	<!-- status = 0, 원글이 살아 있는 경우 / status = 1, 원글이 삭제된(실제로는 감춰진) 경우 -->
+  
+  	<select id="list" parameterType="java.util.Map" resultMap="map1">
+  			SELECT * FROM(
+				SELECT rownum r_num, a. * FROM(
+				SELECT * FROM bbs_t
+				WHERE status = 0  AND bname = #{bname}
+				ORDER BY b_idx DESC
+			  ) a
+			 )WHERE r_num BETWEEN #{begin} AND ${end}
+  	</select>
+  	
+  	<!-- 
+  		페이징 기법에 사용될 전체 페이지 수를 구하기 위해 전체 게시물의 수를 알아야 한다.
+  	 -->
+  	 
+  	 <select id="totalCount" resultType="int" parameterType="String">
+  	 		SELECT COUNT(*) FROM bbs_t
+  	 		WHERE status = 0 AND bname = #{bname}
+  	 </select>
+  	 
+  	 <!-- 원글 저장 SQL -->
+  	 <insert id="add" parameterType = "mybatis.vo.BbsVO">
+		INSERT INTO bbs_t(b_idx, subject, writer, content, pwd, file_name,  ori_name, write_date, ip, hit, status, bname)VALUES(bbs_t_seq.NEXTVAL, #{subject}, #{writer}, #{content}, #{pwd},  #{file_name}, #{ori_name}, sysdate, #{ip}, 0, 0 ,#{bname})
+	</insert>
+	
+	<!-- 게시글 보기 기능 :
+	       기본키(b_idx_)와 bname을 인자로 받아 조건 검색한다. -->
+	<select id="getBbs" parameterType = "java.util.Map" resultMap="map1">
+		SELECT * FROM bbs_t
+		WHERE b_idx = #{b_idx} AND bname = #{bname}
+	</select>
+	
+	<!-- 조회수 증가 -->
+	<update id="hit" parameterType="String">
+		UPDATE bbs_t
+		SET hit = hit + 1
+		WHERE b_idx = #{no}
+	</update>
+	
+	<!-- 댓글 저장 -->
+	<insert id="add_ans" parameterType="mybatis.vo.CommVO">
+		INSERT INTO comment_t(c_idx, writer,content, pwd, write_date, ip, b_idx)
+		VALUES(comment_t_seq.NEXTVAL, #{writer},#{content}, #{pwd}, sysdate, #{ip}, #{b_idx})
+	</insert>
+	
+	<!-- 원글 수정 -->
+	<update id="edit" parameterType = "mybatis.vo.BbsVO">
+			UPDATE bbs_t
+			SET subject = #{subject},
+				  content = #{content},
+				  ip = #{ip}
+				  <if test="file_name != null">
+				  		,file_name = #{file_name}
+				  </if>
+			WHERE b_idx = #{b_idx} AND pwd = #{pwd}	  
+	</update>
+	
+	<!-- 원글 삭제 -->
+	<update id="del" parameterType="java.util.Map">
+			UPDATE bbs_t
+			SET status = 1
+			WHERE b_idx = #{b_idx} AND pwd = #{pwd}
+	</update>
+
+</mapper>
+
+

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.1.xsd">
+	
+    	
+    	<!-- dao에서 @AutoWired를 사용하기 때문에 선언 -->
+    	<context:annotation-config></context:annotation-config>
+    	
+    	<!-- properties 파일을 로드하기 위해 context라는 네임스페이스와 스키마 객체가 필요! 
+    	그래서 위에서 필요한 만큼 beans 요소에 속성을 수정했다.(maven에서는 반자동) -->
+    	<context:property-placeholder location="classpath:mybatis/props/jdbc.properties"/>
+    	
+    	<!-- Apache의 DBCP 객체(데이터 소스)를 생성 -->
+    	<bean id="ds" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+    		<property name="driverClassName" value="${jdbc.driver}"></property>
+    		<property name="url" value="${jdbc.url}"></property>
+    		<property name="username" value="${jdbc.user}"></property>
+    		<property name="password" value="${jdbc.pwd}"></property>
+    		<property name="maxActive" value="${jdbc.maxActive}"></property>
+    		<property name="maxIdle" value="${jdbc.maxIdle}"></property>
+    		<property name="minIdle" value="${jdbc.minIdle}"></property>
+    	</bean>
+    	
+    	<!-- 앞서 생성된 ds 객체(DBCP 데이터 객체)를 현재 객체(팩토리 객체)에 넣어줘야 한다. -->
+    	<bean id="factory" class="org.mybatis.spring.SqlSessionFactoryBean">
+    		<property name="dataSource" ref="ds"></property>
+    		
+    		<!-- mapper(인식)들의 위치 지정 => 경로안에 있는 모든 xml파일들이 mapper다. -->
+    		<property name="mapperLocations" value="classpath:mybatis/mapper/*.xml"></property>
+    	</bean>
+    	
+    	<bean id="ss" class="org.mybatis.spring.SqlSessionTemplate">
+    		<constructor-arg ref="factory"/>
+    	</bean>
+    	
+    	<!-- 사용자가 필요에 따라 정의한 DAO들을 이 곳에서 생성한다. -->
+    	<bean id="bbsDao" class="mybatis.dao.BbsDAO" />
+ 
+</beans>
